@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import time
 import threading
 import logging
@@ -424,8 +425,33 @@ async def on_ready():
     )
 
 # ------------------------------------------------------------------------------
-# UI Component: Verification Link Button
+# UI Component: Verification Link Button & Cleaner
 # ------------------------------------------------------------------------------
+def clean_button_label(text: str = None, role: discord.Role = None, guild: discord.Guild = None) -> str:
+    """แปลง Mention <@&id> หรือตัวแปร {role} ให้กลายเป็นชื่อยศแบบข้อความธรรมดาอัตโนมัติ"""
+    if not text:
+        return f"รับยศ + · {role.name}" if role else "กดที่นี่เพื่อรับยศ"
+
+    if role and "{role}" in text:
+        text = text.replace("{role}", role.name)
+
+    mention_pattern = re.compile(r"<@&?!?(\d+)>")
+    def replace_mention(match):
+        target_id = int(match.group(1))
+        if guild:
+            r = guild.get_role(target_id)
+            if r:
+                return r.name
+            m = guild.get_member(target_id)
+            if m:
+                return m.display_name
+        if role and role.id == target_id:
+            return role.name
+        return str(target_id)
+
+    cleaned = mention_pattern.sub(replace_mention, text).strip()
+    return cleaned[:80] if cleaned else (f"รับยศ + · {role.name}" if role else "กดที่นี่เพื่อรับยศ")
+
 class VerificationLinkView(discord.ui.View):
     def __init__(self, verify_url: str, button_label: str = "รับยศ + · Member", button_emoji: str = "🛡️"):
         super().__init__(timeout=None)
@@ -448,7 +474,7 @@ class VerificationLinkView(discord.ui.View):
     title="หัวข้อของ Embed (ค่าเริ่มต้น: 'รับยศ')",
     description="ข้อความคำอธิบายภายใน Embed (ค่าเริ่มต้น: 'รับยศเพื่อเห็นช่อง')",
     image_url="ลิงก์รูปภาพขนาดใหญ่ตรงกลาง (ค่าเริ่มต้น: แบนเนอร์ HiGHFlowBOT)",
-    button_text="ข้อความบนปุ่มกดรับยศ (ค่าเริ่มต้น: 'กดที่นี่เพื่อรับยศ')",
+    button_text="ข้อความบนปุ่มกดรับยศ (พิมพ์ชื่อยศตรงๆ หรือเว้นว่างเพื่อใช้ชื่อยศอัตโนมัติ)",
     button_emoji="อิโมจิบนปุ่ม (ค่าเริ่มต้น: ✅)",
     color_hex="รหัสสีด้านข้างของ Embed (ค่าเริ่มต้น: #FFFFFF)"
 )
@@ -460,7 +486,7 @@ async def setup_verify(
     title: str = "รับยศ",
     description: str = "รับยศเพื่อเห็นช่อง",
     image_url: str = DEFAULT_EMBED_BANNER,
-    button_text: str = "กดที่นี่เพื่อรับยศ",
+    button_text: str = None,
     button_emoji: str = "✅",
     color_hex: str = "#FFFFFF"
 ):
@@ -505,7 +531,7 @@ async def setup_verify(
 
     # สร้าง OAuth URL ประจำเซิร์ฟเวอร์และยศที่เลือก
     verify_url = get_oauth_url(guild_id=str(interaction.guild_id), role_id=str(role.id))
-    btn_label = button_text or f"รับยศ + · {role.name}"
+    btn_label = clean_button_label(button_text, role=role, guild=interaction.guild)
 
     view = VerificationLinkView(verify_url=verify_url, button_label=btn_label, button_emoji=button_emoji)
 
@@ -566,17 +592,22 @@ async def edit_verify(
 
     # ดึง URL เก่าจากปุ่มเดิม หรือสร้างใหม่หากมีการระบุยศใหม่
     old_url = None
+    old_btn_label = "กดที่นี่เพื่อรับยศ"
+    old_btn_emoji = "✅"
     if msg.components and len(msg.components[0].children) > 0:
-        old_url = getattr(msg.components[0].children[0], "url", None)
+        first_btn = msg.components[0].children[0]
+        old_url = getattr(first_btn, "url", None)
+        old_btn_label = getattr(first_btn, "label", "กดที่นี่เพื่อรับยศ")
+        old_btn_emoji = getattr(first_btn, "emoji", None)
 
     if role:
         new_url = get_oauth_url(guild_id=str(interaction.guild_id), role_id=str(role.id))
-        btn_lbl = button_text or f"รับยศ + · {role.name}"
+        btn_lbl = clean_button_label(button_text, role=role, guild=interaction.guild) if button_text else clean_button_label(None, role=role, guild=interaction.guild)
     else:
         new_url = old_url or get_oauth_url(guild_id=str(interaction.guild_id))
-        btn_lbl = button_text or "กดที่นี่เพื่อรับยศ"
+        btn_lbl = clean_button_label(button_text, guild=interaction.guild) if button_text else old_btn_label
 
-    btn_emj = button_emoji or "✅"
+    btn_emj = button_emoji or old_btn_emoji or "✅"
     new_view = VerificationLinkView(verify_url=new_url, button_label=btn_lbl, button_emoji=btn_emj)
 
     await msg.edit(embed=new_embed, view=new_view)
