@@ -39,17 +39,23 @@
             user-select: none;
         }
 
-        /* Animated Fullscreen Background with Dark Filters */
+        @keyframes subtleZoom {
+            0% { transform: scale(1.0); }
+            50% { transform: scale(1.06); }
+            100% { transform: scale(1.0); }
+        }
+
+        /* Animated Fullscreen Background with Gothic Filters */
         .bg-layer {
             position: fixed;
             inset: 0;
             width: 100vw;
             height: 100vh;
-            background: url("{{ url_for('static', filename='background.gif') }}") center center / cover no-repeat,
-                        radial-gradient(ellipse at center, #111116 0%, #030303 100%);
+            background: url("{{ url_for('static', filename='background.png') }}") center center / cover no-repeat,
+                        radial-gradient(ellipse at center, #180812 0%, #030303 100%);
             z-index: 0;
-            filter: grayscale(100%) contrast(125%) brightness(40%);
-            transform: scale(1.03);
+            filter: contrast(115%) brightness(42%);
+            animation: subtleZoom 25s ease-in-out infinite;
             pointer-events: none;
         }
 
@@ -242,9 +248,16 @@
 
         .role-highlight {
             color: #ffffff;
-            font-weight: 600;
-            text-decoration: underline;
-            text-underline-offset: 3px;
+            font-weight: 800;
+            font-size: 1.05em;
+            background: rgba(255, 105, 180, 0.16);
+            padding: 3px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 105, 180, 0.45);
+            box-shadow: 0 0 16px rgba(255, 105, 180, 0.25);
+            display: inline-block;
+            text-shadow: 0 0 10px rgba(255, 105, 180, 0.6);
+            letter-spacing: 0.02em;
         }
 
         .btn-discord {

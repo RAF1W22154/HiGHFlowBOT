@@ -41,13 +41,22 @@
             padding: 24px 0;
         }
 
+        @keyframes subtleZoom {
+            0% { transform: scale(1.0); }
+            50% { transform: scale(1.06); }
+            100% { transform: scale(1.0); }
+        }
+
         .bg-layer {
             position: fixed;
             inset: 0;
             width: 100vw;
             height: 100vh;
-            background: radial-gradient(ellipse at center, #240a0a 0%, #030303 100%);
+            background: url("{{ url_for('static', filename='background.png') }}") center center / cover no-repeat,
+                        radial-gradient(ellipse at center, #240a0a 0%, #030303 100%);
             z-index: 0;
+            filter: contrast(120%) brightness(30%);
+            animation: subtleZoom 25s ease-in-out infinite;
             pointer-events: none;
         }
 

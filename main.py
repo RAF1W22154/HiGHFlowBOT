@@ -427,10 +427,22 @@ async def on_ready():
 # ------------------------------------------------------------------------------
 # UI Component: Verification Link Button & Cleaner
 # ------------------------------------------------------------------------------
+def to_bold_font(text: str) -> str:
+    """แปลงตัวอักษรและตัวเลขภาษาอังกฤษเป็นตัวหนาแบบ Sans-Serif Bold"""
+    bold_map = {}
+    for i in range(26):
+        bold_map[chr(ord('A') + i)] = chr(0x1D5D4 + i)
+    for i in range(26):
+        bold_map[chr(ord('a') + i)] = chr(0x1D5EE + i)
+    for i in range(10):
+        bold_map[chr(ord('0') + i)] = chr(0x1D7EC + i)
+    return "".join(bold_map.get(c, c) for c in text)
+
 def clean_button_label(text: str = None, role: discord.Role = None, guild: discord.Guild = None) -> str:
-    """แปลง Mention <@&id> หรือตัวแปร {role} ให้กลายเป็นชื่อยศแบบข้อความธรรมดาอัตโนมัติ"""
+    """แปลง Mention หรือปล่อยว่างให้แสดงชื่อยศเพียวๆ (ไม่ใส่คำว่ารับยศ) และทำเป็นตัวหนา"""
     if not text:
-        return f"รับยศ + · {role.name}" if role else "กดที่นี่เพื่อรับยศ"
+        raw_name = role.name if role else "ยืนยันตัวตน"
+        return to_bold_font(raw_name)
 
     if role and "{role}" in text:
         text = text.replace("{role}", role.name)
@@ -450,19 +462,19 @@ def clean_button_label(text: str = None, role: discord.Role = None, guild: disco
         return str(target_id)
 
     cleaned = mention_pattern.sub(replace_mention, text).strip()
-    return cleaned[:80] if cleaned else (f"รับยศ + · {role.name}" if role else "กดที่นี่เพื่อรับยศ")
+    return to_bold_font(cleaned[:80]) if cleaned else (to_bold_font(role.name) if role else "ยืนยันตัวตน")
 
 class VerificationLinkView(discord.ui.View):
-    def __init__(self, verify_url: str, button_label: str = "รับยศ + · Member", button_emoji: str = "🛡️"):
+    def __init__(self, verify_url: str, button_label: str = "Member", button_emoji: str = None):
         super().__init__(timeout=None)
-        self.add_item(
-            discord.ui.Button(
-                style=discord.ButtonStyle.link,
-                label=button_label,
-                url=verify_url,
-                emoji=button_emoji
-            )
-        )
+        btn_kwargs = {
+            "style": discord.ButtonStyle.link,
+            "label": button_label,
+            "url": verify_url
+        }
+        if button_emoji:
+            btn_kwargs["emoji"] = button_emoji
+        self.add_item(discord.ui.Button(**btn_kwargs))
 
 # ------------------------------------------------------------------------------
 # Slash Command: /setup_verify (เลือกยศในคำสั่งได้ทันที รองรับหลาย Server)
@@ -473,9 +485,9 @@ class VerificationLinkView(discord.ui.View):
     channel="ห้องที่ต้องการให้ส่งข้อความ Embed (ค่าเริ่มต้น: ห้องปัจจุบัน)",
     title="หัวข้อของ Embed (ค่าเริ่มต้น: 'รับยศ')",
     description="ข้อความคำอธิบายภายใน Embed (ค่าเริ่มต้น: 'รับยศเพื่อเห็นช่อง')",
-    image_url="ลิงก์รูปภาพขนาดใหญ่ตรงกลาง (ค่าเริ่มต้น: แบนเนอร์ HiGHFlowBOT)",
-    button_text="ข้อความบนปุ่มกดรับยศ (พิมพ์ชื่อยศตรงๆ หรือเว้นว่างเพื่อใช้ชื่อยศอัตโนมัติ)",
-    button_emoji="อิโมจิบนปุ่ม (ค่าเริ่มต้น: ✅)",
+    image_url="ลิงก์รูปภาพขนาดใหญ่ตรงกลาง (ค่าเริ่มต้น: แบนเนอร์คณะโฟเนีย)",
+    button_text="ข้อความบนปุ่มกดรับยศ (ปล่อยว่างไว้จะแสดงเฉพาะชื่อยศตัวหนา)",
+    button_emoji="อิโมจิบนปุ่ม (ค่าเริ่มต้น: ไม่มีอิโมจิ)",
     color_hex="รหัสสีด้านข้างของ Embed (ค่าเริ่มต้น: #FFFFFF)"
 )
 @app_commands.default_permissions(administrator=True)
@@ -487,7 +499,7 @@ async def setup_verify(
     description: str = "รับยศเพื่อเห็นช่อง",
     image_url: str = DEFAULT_EMBED_BANNER,
     button_text: str = None,
-    button_emoji: str = "✅",
+    button_emoji: str = None,
     color_hex: str = "#FFFFFF"
 ):
     # ป้องกัน Discord Interaction Timeout (3 วินาที)
@@ -553,7 +565,7 @@ async def setup_verify(
     description="คำอธิบายใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)",
     image_url="ลิงก์รูปภาพใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)",
     button_text="ข้อความปุ่มใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)",
-    button_emoji="อิโมจิปุ่มใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน)"
+    button_emoji="อิโมจิปุ่มใหม่ (เว้นว่างไว้หากไม่ต้องการเปลี่ยน, พิมพ์ 'none' เพื่อลบอิโมจิออก)"
 )
 @app_commands.default_permissions(administrator=True)
 async def edit_verify(
@@ -592,12 +604,12 @@ async def edit_verify(
 
     # ดึง URL เก่าจากปุ่มเดิม หรือสร้างใหม่หากมีการระบุยศใหม่
     old_url = None
-    old_btn_label = "กดที่นี่เพื่อรับยศ"
-    old_btn_emoji = "✅"
+    old_btn_label = "ยืนยันตัวตน"
+    old_btn_emoji = None
     if msg.components and len(msg.components[0].children) > 0:
         first_btn = msg.components[0].children[0]
         old_url = getattr(first_btn, "url", None)
-        old_btn_label = getattr(first_btn, "label", "กดที่นี่เพื่อรับยศ")
+        old_btn_label = getattr(first_btn, "label", "ยืนยันตัวตน")
         old_btn_emoji = getattr(first_btn, "emoji", None)
 
     if role:
@@ -607,7 +619,11 @@ async def edit_verify(
         new_url = old_url or get_oauth_url(guild_id=str(interaction.guild_id))
         btn_lbl = clean_button_label(button_text, guild=interaction.guild) if button_text else old_btn_label
 
-    btn_emj = button_emoji or old_btn_emoji or "✅"
+    if button_emoji is not None:
+        btn_emj = None if button_emoji.strip().lower() in ["none", "ลบ", "no", "false"] else button_emoji
+    else:
+        btn_emj = old_btn_emoji
+
     new_view = VerificationLinkView(verify_url=new_url, button_label=btn_lbl, button_emoji=btn_emj)
 
     await msg.edit(embed=new_embed, view=new_view)

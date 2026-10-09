@@ -41,16 +41,22 @@
             padding: 20px 0;
         }
 
+        @keyframes subtleZoom {
+            0% { transform: scale(1.0); }
+            50% { transform: scale(1.06); }
+            100% { transform: scale(1.0); }
+        }
+
         .bg-layer {
             position: fixed;
             inset: 0;
             width: 100vw;
             height: 100vh;
-            background: url("{{ url_for('static', filename='background.gif') }}") center center / cover no-repeat,
+            background: url("{{ url_for('static', filename='background.png') }}") center center / cover no-repeat,
                         radial-gradient(ellipse at center, #200808 0%, #030303 100%);
             z-index: 0;
-            filter: grayscale(80%) contrast(140%) brightness(30%);
-            transform: scale(1.03);
+            filter: contrast(125%) brightness(35%);
+            animation: subtleZoom 25s ease-in-out infinite;
             pointer-events: none;
         }
 
