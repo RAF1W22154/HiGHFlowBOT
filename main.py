@@ -33,7 +33,8 @@ REDIRECT_URI = os.getenv("REDIRECT_URI", "").strip()
 # Fallback IDs for backward compatibility (optional in multi-server mode)
 GUILD_ID = os.getenv("GUILD_ID", "").strip()
 VERIFIED_ROLE_ID = os.getenv("VERIFIED_ROLE_ID", "").strip()
-PORT = int(os.getenv("PORT", 5000))
+port_env = os.getenv("PORT", "5000")
+PORT = int(port_env) if str(port_env).isdigit() else 5000
 
 # Default gothic banner image for Discord Embed
 DEFAULT_EMBED_BANNER = "https://raw.githubusercontent.com/RAF1W22154/HiGHFlowBOT/main/static/banner.png"
