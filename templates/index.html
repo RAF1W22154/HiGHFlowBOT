@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiGHFlowBOT — Verify Success</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Kanit:wght@300;400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030303;
+            --glass-bg: rgba(12, 12, 14, 0.72);
+            --glass-border: rgba(255, 255, 255, 0.16);
+            --glass-glow: rgba(255, 255, 255, 0.08);
+            --accent-white: #ffffff;
+            --text-muted: #8e8e93;
+            --text-dim: #5c5c63;
+            --radius-main: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Kanit', sans-serif;
+            color: var(--accent-white);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+            user-select: none;
+        }
+
+        /* Animated Fullscreen Background with Dark Filters */
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: url("{{ url_for('static', filename='background.gif') }}") center center / cover no-repeat,
+                        radial-gradient(ellipse at center, #111116 0%, #030303 100%);
+            z-index: 0;
+            filter: grayscale(100%) contrast(125%) brightness(40%);
+            transform: scale(1.03);
+            pointer-events: none;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(3, 3, 3, 0.45) 0%, rgba(3, 3, 3, 0.92) 80%),
+                        linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.95));
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .vignette {
+            position: fixed;
+            inset: 0;
+            box-shadow: inset 0 0 160px rgba(0, 0, 0, 0.98);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Glassmorphism Gothic Main Container */
+        .verify-card {
+            position: relative;
+            z-index: 10;
+            width: 90%;
+            max-width: 460px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(28px) saturate(200%);
+            -webkit-backdrop-filter: blur(28px) saturate(200%);
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 255, 255, 0.35);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-main);
+            padding: 44px 34px 36px 34px;
+            text-align: center;
+            box-shadow: 0 35px 80px rgba(0, 0, 0, 0.85),
+                        0 0 40px var(--glass-glow),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes cardAppear {
+            0% { opacity: 0; transform: translateY(28px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 28px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+        }
+
+        .brand-icon {
+            width: 22px;
+            height: 22px;
+            fill: var(--accent-white);
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7));
+        }
+
+        .brand-title {
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            font-size: 1.15rem;
+            color: #ffffff;
+            text-shadow: 0 0 18px rgba(255, 255, 255, 0.4);
+        }
+
+        .avatar-wrapper {
+            position: relative;
+            width: 110px;
+            height: 110px;
+            margin: 0 auto 22px auto;
+        }
+
+        .avatar-glow {
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.05), rgba(255,255,255,0.5));
+            animation: rotateGlow 6s linear infinite;
+            filter: blur(2px);
+        }
+
+        @keyframes rotateGlow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .avatar-img {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            background-color: #0b0b0e;
+            border: 3px solid #000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+            z-index: 2;
+        }
+
+        .badge-verified {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            width: 28px;
+            height: 28px;
+            background: #ffffff;
+            color: #000000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 900;
+            border: 2px solid #000;
+            z-index: 3;
+            box-shadow: 0 2px 10px rgba(255, 255, 255, 0.4);
+        }
+
+        .username-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.01em;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .user-tag {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            margin-bottom: 24px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            padding: 5px 14px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #ffffff;
+            margin-bottom: 18px;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 8px #ffffff;
+            animation: pulseDot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { opacity: 0.4; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.15); }
+        }
+
+        .headline-success {
+            font-family: 'Cinzel', serif;
+            font-size: 1.85rem;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            color: #ffffff;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 20px rgba(255, 255, 255, 0.35);
+        }
+
+        .desc-text {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-weight: 300;
+            margin-bottom: 30px;
+            padding: 0 6px;
+        }
+
+        .role-highlight {
+            color: #ffffff;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .btn-discord {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: #ffffff;
+            color: #000000;
+            text-decoration: none;
+            padding: 16px 24px;
+            border-radius: 14px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid #ffffff;
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+        }
+
+        .btn-discord:hover {
+            transform: translateY(-2px);
+            background: #f0f0f2;
+            box-shadow: 0 14px 32px rgba(255, 255, 255, 0.35);
+            color: #000000;
+        }
+
+        .btn-discord:active {
+            transform: translateY(0);
+        }
+
+        .btn-icon {
+            width: 22px;
+            height: 22px;
+            fill: #000000;
+        }
+
+        /* Circular Social Icon Buttons (Discord & Instagram) */
+        .social-links-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 26px;
+        }
+
+        .btn-social {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .btn-social:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-3px) scale(1.08);
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+
+        .btn-social:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .btn-social svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+
+        .footer-note {
+            margin-top: 24px;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-layer"></div>
+    <div class="bg-overlay"></div>
+    <div class="vignette"></div>
+
+    <div class="verify-card">
+        <div class="brand-header">
+            <svg class="brand-icon" viewBox="0 0 24 24">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.54-3.13 8.78-7 9.88-3.87-1.1-7-5.34-7-9.88V6.3l7-3.12zM12 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>
+            </svg>
+            <span class="brand-title">HiGHFlowBOT</span>
+        </div>
+
+        <div class="avatar-wrapper">
+            <div class="avatar-glow"></div>
+            <img class="avatar-img" src="{{ avatar_url }}" alt="{{ username }}'s Avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+            <div class="badge-verified">✓</div>
+        </div>
+
+        <div class="username-text">{{ display_name if display_name else username }}</div>
+        <div class="user-tag">@{{ username }}</div>
+
+        <div class="status-pill">
+            <span class="status-dot"></span>
+            <span>SYSTEM AUTHORIZED</span>
+        </div>
+
+        <h1 class="headline-success">VERIFY SUCCESS</h1>
+        <p class="desc-text">
+            ยืนยันตัวตนสำเร็จแล้ว ระบบได้ส่งมอบยศ <span class="role-highlight">{{ role_name }}</span> ให้บัญชีของคุณในเซิร์ฟเวอร์เรียบร้อยแล้ว
+        </p>
+
+        <!-- Return to Discord Button -->
+        <a href="{{ discord_return_url }}" class="btn-discord">
+            <svg class="btn-icon" viewBox="0 0 24 24">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+            </svg>
+            <span>กลับสู่ Discord</span>
+        </a>
+
+        <!-- Circular Social Profile Links (Discord & Instagram) -->
+        <div class="social-links-container">
+            <a href="https://discordapp.com/users/1114749437370183852" target="_blank" rel="noopener noreferrer" class="btn-social" title="Discord Profile">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+            </a>
+            <a href="https://www.instagram.com/highflow.real?stkn=MWNiZTVwcXFqdXh5aw%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" class="btn-social" title="Instagram Profile">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+            </a>
+        </div>
+
+        <div class="footer-note">
+            SECURE VERIFICATION SYSTEM · HIGHFLOW
+        </div>
+    </div>
+</body>
+</html>
