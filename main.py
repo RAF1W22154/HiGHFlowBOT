@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import threading
 import logging
 import requests
@@ -30,9 +31,11 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "").strip()
 CLIENT_ID = os.getenv("CLIENT_ID", "").strip()
 CLIENT_SECRET = os.getenv("CLIENT_SECRET", "").strip()
 REDIRECT_URI = os.getenv("REDIRECT_URI", "").strip()
+
 # Fallback IDs for backward compatibility (optional in multi-server mode)
 GUILD_ID = os.getenv("GUILD_ID", "").strip()
 VERIFIED_ROLE_ID = os.getenv("VERIFIED_ROLE_ID", "").strip()
+
 port_env = os.getenv("PORT", "5000")
 PORT = int(port_env) if str(port_env).isdigit() else 5000
 
@@ -71,6 +74,33 @@ flask_app.jinja_loader = jinja2.ChoiceLoader([
 log_werkzeug = logging.getLogger('werkzeug')
 log_werkzeug.setLevel(logging.WARNING)
 
+def render_error_page(title: str, message: str, retry_url: str = None, discord_return_url: str = None, status_code: int = 400):
+    """Renders a styled gothic dark error page with fallback."""
+    try:
+        return render_template(
+            "error.html",
+            title=title,
+            message=message,
+            retry_url=retry_url,
+            discord_return_url=discord_return_url or "https://discord.com/channels/@me"
+        ), status_code
+    except Exception as e:
+        logger.warning(f"Failed to render error.html: {e}")
+        for possible_path in [
+            os.path.join(BASE_DIR, "templates", "error.html"),
+            os.path.join(BASE_DIR, "error.html"),
+        ]:
+            if os.path.exists(possible_path):
+                with open(possible_path, "r", encoding="utf-8") as f:
+                    return render_template_string(
+                        f.read(),
+                        title=title,
+                        message=message,
+                        retry_url=retry_url,
+                        discord_return_url=discord_return_url or "https://discord.com/channels/@me"
+                    ), status_code
+        return f"<div style='background:#111;color:#fff;padding:40px;font-family:sans-serif;'><h2>{title}</h2><p>{message}</p></div>", status_code
+
 @flask_app.route("/", methods=["GET"])
 def health_check():
     """UptimeRobot ping endpoint to keep Render web service awake 24/7."""
@@ -84,7 +114,11 @@ def health_check():
 def initiate_verify():
     """Redirects the user to Discord OAuth2 Authorization."""
     if not CLIENT_ID or not REDIRECT_URI:
-        return "<h3>Configuration Error: CLIENT_ID or REDIRECT_URI is missing.</h3>", 500
+        return render_error_page(
+            title="CONFIGURATION ERROR",
+            message="CLIENT_ID หรือ REDIRECT_URI ยังไม่ได้รับการตั้งค่าในระบบ กรุณาตรวจสอบ Environment Variables",
+            status_code=500
+        )
     guild_id = request.args.get("guild_id")
     role_id = request.args.get("role_id")
     return redirect(get_oauth_url(guild_id=guild_id, role_id=role_id))
@@ -95,13 +129,6 @@ def oauth_callback():
     error = request.args.get("error")
     state = request.args.get("state", "").strip()
 
-    if error:
-        logger.warning(f"OAuth error received: {error}")
-        return f"<h3>Authentication Cancelled: {error}</h3>", 400
-
-    if not code:
-        return "<h3>Invalid Request: Authorization code missing.</h3>", 400
-
     # Resolve target guild and role from state parameter (Multi-Server)
     target_guild_id = GUILD_ID
     target_role_id = VERIFIED_ROLE_ID
@@ -110,6 +137,28 @@ def oauth_callback():
         if parts[0].isdigit() and parts[1].isdigit():
             target_guild_id = parts[0]
             target_role_id = parts[1]
+
+    discord_return_url = f"https://discord.com/channels/{target_guild_id}" if target_guild_id else "https://discord.com/channels/@me"
+    retry_url = get_oauth_url(guild_id=target_guild_id, role_id=target_role_id)
+
+    if error:
+        logger.warning(f"OAuth error received: {error}")
+        return render_error_page(
+            title="AUTHENTICATION CANCELLED",
+            message=f"การยืนยันตัวตนถูกยกเลิก หรือไม่ได้รับการอนุญาตจาก Discord ({error})",
+            retry_url=retry_url,
+            discord_return_url=discord_return_url,
+            status_code=400
+        )
+
+    if not code:
+        return render_error_page(
+            title="INVALID REQUEST",
+            message="ไม่พบ Authorization Code จาก Discord กรุณากดปุ่มยืนยันตัวตนใหม่อีกครั้ง",
+            retry_url=retry_url,
+            discord_return_url=discord_return_url,
+            status_code=400
+        )
 
     # 1. Exchange OAuth code for Access Token
     token_url = "https://discord.com/api/v10/oauth2/token"
@@ -126,7 +175,13 @@ def oauth_callback():
         token_response = requests.post(token_url, data=token_data, headers=headers, timeout=10)
         if token_response.status_code != 200:
             logger.error(f"Failed to fetch token: {token_response.text}")
-            return f"<h3>Token Exchange Failed ({token_response.status_code}). Please try again.</h3>", 400
+            return render_error_page(
+                title="TOKEN EXCHANGE FAILED",
+                message=f"ไม่สามารถแลกเปลี่ยน Token กับ Discord ได้ ({token_response.status_code}) กรุณาลองใหม่อีกครั้ง",
+                retry_url=retry_url,
+                discord_return_url=discord_return_url,
+                status_code=400
+            )
 
         token_json = token_response.json()
         access_token = token_json.get("access_token")
@@ -138,15 +193,26 @@ def oauth_callback():
 
         if user_response.status_code != 200:
             logger.error(f"Failed to fetch user data: {user_response.text}")
-            return "<h3>Failed to retrieve user profile from Discord.</h3>", 400
+            return render_error_page(
+                title="PROFILE FETCH FAILED",
+                message="ไม่สามารถดึงข้อมูลโปรไฟล์จาก Discord ได้ กรุณาลองใหม่อีกครั้ง",
+                retry_url=retry_url,
+                discord_return_url=discord_return_url,
+                status_code=400
+            )
 
         user_data = user_response.json()
         user_id = user_data.get("id")
         username = user_data.get("username", "Unknown")
         display_name = user_data.get("global_name") or username
         avatar_hash = user_data.get("avatar")
-        is_verified = user_data.get("verified") is True
-        user_email = user_data.get("email")
+
+        # ตรวจสอบการยืนยันตัวตน: Email ยืนยันแล้ว หรือเปิดใช้ เบอร์โทรศัพท์ / MFA
+        is_email_verified = (user_data.get("verified") is True) and bool(user_data.get("email"))
+        has_mfa = bool(user_data.get("mfa_enabled"))
+        has_sms_2fa = bool(user_data.get("flags", 0) & 16) or bool(user_data.get("public_flags", 0) & 16)
+
+        is_account_verified = is_email_verified or has_mfa or has_sms_2fa
 
         if avatar_hash:
             ext = "gif" if avatar_hash.startswith("a_") else "png"
@@ -155,12 +221,12 @@ def oauth_callback():
             default_index = (int(user_id) >> 22) % 6
             avatar_url = f"https://cdn.discordapp.com/embed/avatars/{default_index}.png"
 
-        discord_return_url = f"https://discord.com/channels/{target_guild_id}" if target_guild_id else "https://discord.com/channels/@me"
-        retry_url = get_oauth_url(guild_id=target_guild_id, role_id=target_role_id)
-
         # 2.1 Security Enforcement: บัญชีต้องยืนยัน Email หรือเบอร์โทรศัพท์บน Discord แล้วเท่านั้น
-        if not is_verified or not user_email:
-            logger.warning(f"User {username} ({user_id}) denied role: account unverified on Discord (verified={is_verified}, email={user_email})")
+        if not is_account_verified:
+            logger.warning(
+                f"User {username} ({user_id}) denied role: account unverified on Discord "
+                f"(email_verified={is_email_verified}, mfa={has_mfa}, sms={has_sms_2fa})"
+            )
             try:
                 return render_template(
                     "unverified.html",
@@ -173,8 +239,8 @@ def oauth_callback():
             except Exception as t_err:
                 logger.warning(f"render_template unverified failed ({t_err}), trying fallback...")
                 for possible_path in [
-                    os.path.join(BASE_DIR, "unverified.html"),
                     os.path.join(BASE_DIR, "templates", "unverified.html"),
+                    os.path.join(BASE_DIR, "unverified.html"),
                 ]:
                     if os.path.exists(possible_path):
                         with open(possible_path, "r", encoding="utf-8") as f:
@@ -194,26 +260,67 @@ def oauth_callback():
             "Content-Type": "application/json"
         }
 
-        if target_guild_id:
-            # Attempt to add user to guild if not present (guilds.join scope)
-            add_guild_url = f"https://discord.com/api/v10/guilds/{target_guild_id}/members/{user_id}"
-            add_payload = {
-                "access_token": access_token,
-                "roles": [str(target_role_id)] if target_role_id else []
-            }
-            add_res = requests.put(add_guild_url, json=add_payload, headers=bot_auth_headers, timeout=10)
+        role_assigned = False
+        role_error_message = None
 
-            # If user is already in guild (HTTP 204), explicitly add role
-            if add_res.status_code in [201, 204]:
-                if target_role_id:
-                    role_assign_url = f"https://discord.com/api/v10/guilds/{target_guild_id}/members/{user_id}/roles/{target_role_id}"
-                    role_res = requests.put(role_assign_url, headers=bot_auth_headers, timeout=10)
-                    if role_res.status_code in [204, 200]:
-                        logger.info(f"Assigned role {target_role_id} in guild {target_guild_id} to {username} ({user_id})")
+        if target_guild_id and target_role_id:
+            # Step A: ดึงเข้า Discord Server ผ่าน scope guilds.join หากผู้ใช้ยังไม่ได้อยู่ใน Server
+            try:
+                add_guild_url = f"https://discord.com/api/v10/guilds/{target_guild_id}/members/{user_id}"
+                add_payload = {
+                    "access_token": access_token,
+                    "roles": [str(target_role_id)]
+                }
+                add_res = requests.put(add_guild_url, json=add_payload, headers=bot_auth_headers, timeout=10)
+                if add_res.status_code == 201:
+                    logger.info(f"User {username} ({user_id}) added to guild {target_guild_id} with role {target_role_id}")
+                    role_assigned = True
+                elif add_res.status_code == 204:
+                    logger.info(f"User {username} ({user_id}) is already a member of guild {target_guild_id}")
+                else:
+                    logger.warning(f"Add member API returned {add_res.status_code}: {add_res.text}")
+            except Exception as e:
+                logger.warning(f"Error calling add guild member: {e}")
+
+            # Step B: หากไม่ได้ยศจากการเพิ่มสมาชิก (เช่น เป็นสมาชิกอยู่แล้ว หรือ add_res ล้มเหลว) ให้มอบยศตรง
+            if not role_assigned:
+                role_assign_url = f"https://discord.com/api/v10/guilds/{target_guild_id}/members/{user_id}/roles/{target_role_id}"
+                role_res = requests.put(role_assign_url, headers=bot_auth_headers, timeout=10)
+                if role_res.status_code in [200, 204]:
+                    logger.info(f"Assigned role {target_role_id} in guild {target_guild_id} to {username} ({user_id})")
+                    role_assigned = True
+                else:
+                    err_json = {}
+                    try:
+                        err_json = role_res.json()
+                    except Exception:
+                        pass
+                    err_code = err_json.get("code")
+                    if role_res.status_code == 403:
+                        if err_code == 50013:
+                            role_error_message = (
+                                "บอทไม่มีสิทธิ์มอบยศนี้ (Hierarchy Error): "
+                                "กรุณาแจ้ง Admin ให้เข้า Server Settings > Roles แล้วลากยศบอทขึ้นไปอยู่เหนือยศที่ต้องการแจก "
+                                "และตรวจสอบว่าบอทมีสิทธิ์ Manage Roles"
+                            )
+                        else:
+                            role_error_message = "บอทไม่มีสิทธิ์จัดการบทบาทในเซิร์ฟเวอร์ (Manage Roles Missing)"
+                    elif role_res.status_code == 404:
+                        role_error_message = "ไม่พบผู้ใช้หรือยศนี้ในเซิร์ฟเวอร์ กรุณาตรวจสอบว่าคุณได้เข้าร่วมเซิร์ฟเวอร์แล้วหรือไม่"
                     else:
-                        logger.warning(f"Role assign API responded with {role_res.status_code}: {role_res.text}")
-            else:
-                logger.warning(f"Member add API responded with {add_res.status_code}: {add_res.text}")
+                        role_error_message = f"Discord API Error ({role_res.status_code}): {err_json.get('message', role_res.text)}"
+
+                    logger.error(f"Failed to assign role {target_role_id} to {username} ({user_id}): {role_res.status_code} - {role_res.text}")
+
+        # หากมอบยศไม่สำเร็จ แจ้งเตือนข้อผิดพลาดทันที แทนที่จะแสดงหน้าสำเร็จแบบหลอก
+        if not role_assigned and role_error_message:
+            return render_error_page(
+                title="ROLE ASSIGNMENT FAILED",
+                message=role_error_message,
+                retry_url=retry_url,
+                discord_return_url=discord_return_url,
+                status_code=500
+            )
 
         # Resolve role name for UI presentation
         resolved_role_name = "Member"
@@ -223,8 +330,6 @@ def oauth_callback():
                 role_obj = guild.get_role(int(target_role_id))
                 if role_obj:
                     resolved_role_name = role_obj.name
-
-        discord_return_url = f"https://discord.com/channels/{target_guild_id}" if target_guild_id else "https://discord.com/channels/@me"
 
         # Render Gothic Glassmorphism Success Page
         try:
@@ -239,8 +344,8 @@ def oauth_callback():
         except Exception as t_err:
             logger.warning(f"render_template failed ({t_err}), trying direct file read fallback...")
             for possible_path in [
-                os.path.join(BASE_DIR, "index.html"),
                 os.path.join(BASE_DIR, "templates", "index.html"),
+                os.path.join(BASE_DIR, "index.html"),
             ]:
                 if os.path.exists(possible_path):
                     with open(possible_path, "r", encoding="utf-8") as f:
@@ -256,12 +361,38 @@ def oauth_callback():
 
     except Exception as e:
         logger.exception(f"Unhandled exception during OAuth verification: {e}")
-        return f"<h3>Internal Server Error during verification: {str(e)}</h3>", 500
+        return render_error_page(
+            title="INTERNAL SERVER ERROR",
+            message=f"เกิดข้อผิดพลาดในการยืนยันตัวตน: {str(e)}",
+            retry_url=retry_url,
+            discord_return_url=discord_return_url,
+            status_code=500
+        )
 
 def run_flask_service():
-    """Runs the Flask web server in a separate background daemon thread."""
+    """Runs the Flask web server in a background daemon thread."""
     logger.info(f"Starting Flask Web Server on 0.0.0.0:{PORT}...")
     flask_app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
+
+def keepalive_task():
+    """Background task to keep Render free tier awake by pinging / every 10 minutes."""
+    app_url = os.getenv("RENDER_EXTERNAL_URL", "").strip() or os.getenv("SELF_PING_URL", "").strip()
+    if not app_url and REDIRECT_URI and "onrender.com" in REDIRECT_URI:
+        app_url = REDIRECT_URI.split("/callback")[0]
+
+    if not app_url:
+        logger.info("No external Render URL configured for self keep-alive. Skipping auto-ping.")
+        return
+
+    logger.info(f"Keep-alive task initiated for {app_url} (interval: 10m)")
+    time.sleep(120)  # รอ 2 นาทีหลังเริ่มระบบ
+    while True:
+        try:
+            res = requests.get(f"{app_url}/", timeout=15)
+            logger.info(f"Keep-alive ping to {app_url}/ returned HTTP {res.status_code}")
+        except Exception as e:
+            logger.debug(f"Keep-alive ping exception: {e}")
+        time.sleep(600)  # Ping ทุก 10 นาที
 
 
 # ==============================================================================
@@ -457,7 +588,6 @@ async def edit_verify(
 @bot.tree.command(name="check_config", description="ตรวจสอบสถานะการเชื่อมต่อและสิทธิ์ของบอทในเซิร์ฟเวอร์นี้ (Admin Only)")
 @app_commands.default_permissions(administrator=True)
 async def check_config(interaction: discord.Interaction):
-    # ยืดเวลา interaction ทันที ไม่ให้ขึ้น "แอปพลิเคชันไม่ตอบสนอง"
     await interaction.response.defer(ephemeral=True)
 
     guild = interaction.guild
@@ -498,10 +628,20 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask_service, daemon=True)
     flask_thread.start()
 
-    # 2. Run Discord Bot in Main Thread
+    # 2. Launch Keep-alive Background Task (for Render Free Tier)
+    keepalive_thread = threading.Thread(target=keepalive_task, daemon=True)
+    keepalive_thread.start()
+
+    # 3. Run Discord Bot in Main Thread
     logger.info("Connecting Discord Bot...")
     try:
         bot.run(DISCORD_BOT_TOKEN)
+    except discord.errors.LoginFailure:
+        logger.critical("Failed to login to Discord: Invalid DISCORD_BOT_TOKEN. Please Reset Token in Discord Developer Portal!")
+        sys.exit(1)
+    except discord.errors.PrivilegedIntentsRequired:
+        logger.critical("Privileged Intents Required! Go to Discord Developer Portal > Bot > Turn ON 'Server Members Intent' and 'Message Content Intent'!")
+        sys.exit(1)
     except Exception as e:
         logger.critical(f"Failed to start Discord Bot: {e}")
         sys.exit(1)

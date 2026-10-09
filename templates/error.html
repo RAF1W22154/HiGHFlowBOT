@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiGHFlowBOT — System Notice</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Kanit:wght@300;400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030303;
+            --glass-bg: rgba(18, 12, 12, 0.82);
+            --glass-border: rgba(255, 90, 90, 0.28);
+            --glass-glow: rgba(255, 60, 60, 0.14);
+            --accent-red: #ff453a;
+            --accent-white: #ffffff;
+            --text-muted: #a89a9a;
+            --text-dim: #6a5a5a;
+            --radius-main: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Kanit', sans-serif;
+            color: var(--accent-white);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+            user-select: none;
+            padding: 24px 0;
+        }
+
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(ellipse at center, #240a0a 0%, #030303 100%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(50, 0, 0, 0.4) 0%, rgba(3, 3, 3, 0.96) 85%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .vignette {
+            position: fixed;
+            inset: 0;
+            box-shadow: inset 0 0 180px rgba(0, 0, 0, 0.99);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .error-card {
+            position: relative;
+            z-index: 10;
+            width: 90%;
+            max-width: 480px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(28px) saturate(200%);
+            -webkit-backdrop-filter: blur(28px) saturate(200%);
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 120, 120, 0.45);
+            border-bottom: 1px solid rgba(255, 50, 50, 0.15);
+            border-radius: var(--radius-main);
+            padding: 42px 32px 36px 32px;
+            text-align: center;
+            box-shadow: 0 35px 80px rgba(0, 0, 0, 0.9),
+                        0 0 50px var(--glass-glow),
+                        inset 0 1px 0 rgba(255, 120, 120, 0.2);
+            animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes cardAppear {
+            0% { opacity: 0; transform: translateY(28px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+        }
+
+        .brand-icon {
+            width: 22px;
+            height: 22px;
+            fill: #ff4d4d;
+            filter: drop-shadow(0 0 8px rgba(255, 60, 60, 0.7));
+        }
+
+        .brand-title {
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            font-size: 1.15rem;
+            color: #ffffff;
+            text-shadow: 0 0 18px rgba(255, 60, 60, 0.5);
+        }
+
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 69, 58, 0.14);
+            border: 2px solid rgba(255, 69, 58, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            box-shadow: 0 0 30px rgba(255, 69, 58, 0.25);
+        }
+
+        .icon-circle svg {
+            width: 38px;
+            height: 38px;
+            fill: #ff453a;
+        }
+
+        .headline {
+            font-family: 'Cinzel', serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            color: #ffffff;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 20px rgba(255, 69, 58, 0.5);
+        }
+
+        .desc-box {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 16px 20px;
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 0.92rem;
+            color: #e5d7d7;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+
+        .btn-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            background: #ff453a;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid #ff6358;
+            box-shadow: 0 8px 24px rgba(255, 69, 58, 0.35);
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            background: #e02d23;
+            box-shadow: 0 14px 32px rgba(255, 69, 58, 0.5);
+            color: #ffffff;
+        }
+
+        .btn-return {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        .btn-return:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .footer-note {
+            margin-top: 22px;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-layer"></div>
+    <div class="bg-overlay"></div>
+    <div class="vignette"></div>
+
+    <div class="error-card">
+        <div class="brand-header">
+            <svg class="brand-icon" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            <span class="brand-title">HiGHFlowBOT</span>
+        </div>
+
+        <div class="icon-circle">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+        </div>
+
+        <h1 class="headline">{{ title or 'VERIFICATION NOTICE' }}</h1>
+        <div class="desc-box">
+            {{ message or 'An unexpected error occurred during verification.' }}
+        </div>
+
+        {% if retry_url %}
+        <a href="{{ retry_url }}" class="btn-action">
+            <span>🔄 ลองใหม่อีกครั้ง</span>
+        </a>
+        {% endif %}
+
+        <a href="{{ discord_return_url or 'https://discord.com/channels/@me' }}" class="btn-return">
+            <span>กลับสู่ Discord</span>
+        </a>
+
+        <div class="footer-note">
+            SECURITY ENFORCEMENT SYSTEM · HIGHFLOW
+        </div>
+    </div>
+</body>
+</html>
