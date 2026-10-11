@@ -41,7 +41,7 @@ port_env = os.getenv("PORT", "5000")
 PORT = int(port_env) if str(port_env).isdigit() else 5000
 
 # Default gothic banner image for Discord Embed
-DEFAULT_EMBED_BANNER = "https://raw.githubusercontent.com/RAF1W22154/HiGHFlowBOT/main/static/banner.png"
+DEFAULT_EMBED_BANNER = "https://raw.githubusercontent.com/RAF1W22154/HiGHFlowBOT/main/static/banner.png?v=2"
 
 # Multi-Server Stateless OAuth2 URL Generator
 def get_oauth_url(guild_id: str = None, role_id: str = None) -> str:
